@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NusukBot PC | لوحة التحكم وفحص الأتمتة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+    <!-- Top Header -->
+    <header class="border-b border-slate-800 bg-slate-900/95 backdrop-blur sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between shadow-xl">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-600 via-emerald-600 to-teal-400 flex items-center justify-center text-xl font-black shadow-lg border border-emerald-500/30">
+                🕋
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-lg font-black bg-gradient-to-r from-amber-300 via-emerald-300 to-teal-100 bg-clip-text text-transparent">NusukBot PC</h1>
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">UI Automation Suite</span>
+                </div>
+                <p class="text-xs text-slate-400">أداة أتمتة واختبار واجهة تطبيق نسك عبر محاكي أندرويد (ADB)</p>
+            </div>
+        </div>
+
+        <!-- Center: Live Device Info -->
+        <div class="hidden md:flex items-center gap-3 bg-slate-800/60 px-4 py-1.5 rounded-xl border border-slate-700/50 text-xs">
+            <span class="text-slate-400">الجهاز:</span>
+            <span id="hdrDeviceModel" class="font-bold text-slate-200">غير متصل</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400">الدقة:</span>
+            <span id="hdrResolution" class="font-mono text-emerald-400">-</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-slate-400">الشاشة الحالية:</span>
+            <span id="hdrCurrentScreen" class="font-bold text-amber-300">UNKNOWN</span>
+        </div>
+
+        <!-- Right: Action Buttons & Connection Badge -->
+        <div class="flex items-center gap-3">
+            <button onclick="runPreflight()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition">
+                <span>🔍</span>
+                <span>فحص البيئة (Preflight)</span>
+            </button>
+
+            <div id="statusBadge" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-400 flex items-center gap-2 border border-slate-700">
+                <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+                <span id="statusText">جاري الفحص...</span>
+            </div>
+
+            <button id="btnStart" onclick="startBot()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-xs shadow-lg transition flex items-center gap-1.5">
+                <span>⚡</span>
+                <span>بدء التشغيل</span>
+            </button>
+
+            <button id="btnResume" onclick="resumeBot()" class="px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 font-bold text-xs shadow-lg transition hidden flex items-center gap-1.5">
+                <span>▶</span>
+                <span>استئناف</span>
+            </button>
+
+            <button id="btnStop" onclick="stopBot()" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 font-bold text-xs transition hidden flex items-center gap-1.5">
+                <span>⛔</span>
+                <span>إيقاف</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Security Challenge Alert Banner (Conditional) -->
+    <div id="secAlertBanner" class="hidden bg-amber-950/80 border-b border-amber-600/50 p-3 px-6 text-amber-200 text-xs flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="text-base">⚠️</span>
+            <span class="font-bold">تنبيه أمني:</span>
+            <span id="secAlertText">تم رصد فحص أمني (CAPTCHA/تحقق) في التطبيق. تم إيقاف الأتمتة بأمان لحماية الحساب. يرجى إكمال الفحص يدوياً على المحاكي ثم الضغط على "استئناف".</span>
+        </div>
+        <button onclick="resumeBot()" class="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-xs transition">
+            تم الحل - استئناف
+        </button>
+    </div>
+
+    <!-- Main Workspace Grid -->
+    <main class="p-5 grid grid-cols-12 gap-5 max-w-[1600px] mx-auto">
+
+        <!-- ================= LEFT COLUMN: DATA & APPOINTMENTS (7 COLS) ================= -->
+        <div class="col-span-12 lg:col-span-7 space-y-5">
+
+            <!-- 1. Stats Counter Cards -->
+            <div class="grid grid-cols-4 gap-3">
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-2xl">
+                    <div class="text-xs text-slate-400 font-semibold mb-1">المعتمرين المحملين</div>
+                    <div id="countTotal" class="text-2xl font-black text-amber-400">0</div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-2xl">
+                    <div class="text-xs text-slate-400 font-semibold mb-1">المكتملين بنجاح</div>
+                    <div id="countDone" class="text-2xl font-black text-emerald-400">0</div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-2xl">
+                    <div class="text-xs text-slate-400 font-semibold mb-1">حالة المنظومة</div>
+                    <div id="engineStateBadge" class="text-sm font-bold text-slate-300">غير متصل</div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 p-3.5 rounded-2xl">
+                    <div class="text-xs text-slate-400 font-semibold mb-1">الموظف الذكي (AI)</div>
+                    <div id="aiStatusBadge" class="text-xs font-bold text-slate-400">غير مفعل</div>
+                </div>
+            </div>
+
+            <!-- 2. Dynamic Slots Status Card (No fake availability) -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🕌</span>
+                        <h2 class="text-sm font-bold text-white">مواعيد الروضة الشريفة (من شاشة التطبيق الفعلية)</h2>
+                    </div>
+                    <span id="slotsIndicator" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400">بانتظار شاشة الكالندر</span>
+                </div>
+
+                <div id="slotsContainer" class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center text-xs text-slate-400">
+                    لا توجد مواعيد معروضة حالياً. تظهر المواعيد هنا بشكل حي وتلقائي عند وصول شاشة المحاكي إلى جدول المواعيد الرسمي.
+                </div>
+            </div>
+
+            <!-- 3. Passengers Table Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-3.5">
+                    <h2 class="text-sm font-bold flex items-center gap-2 text-white">
+                        <span>👥</span>
+                        <span>قائمة الحسابات والمعتمرين</span>
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <button onclick="promptImport()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition flex items-center gap-1">
+                            <span>📥</span>
+                            <span>استيراد CSV / Excel</span>
+                        </button>
+                        <button onclick="generateDotTrickAccounts()" class="px-3 py-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-xs font-semibold text-indigo-300 border border-indigo-800/80 transition flex items-center gap-1">
+                            <span>✨</span>
+                            <span>توليد Dot Trick</span>
+                        </button>
+                        <button onclick="exportExcel()" class="px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-xs font-semibold text-emerald-300 border border-emerald-800/80 transition flex items-center gap-1">
+                            <span>📤</span>
+                            <span>تصدير النتائج</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-64">
+                    <table class="w-full text-right text-xs">
+                        <thead class="bg-slate-800/80 text-slate-400 sticky top-0 font-bold">
+                            <tr>
+                                <th class="p-2.5 rounded-r-lg">م</th>
+                                <th class="p-2.5">الاسم</th>
+                                <th class="p-2.5">البريد الإلكتروني</th>
+                                <th class="p-2.5">الجواز / الهوية</th>
+                                <th class="p-2.5">النوع</th>
+                                <th class="p-2.5">الحالة</th>
+                                <th class="p-2.5 rounded-l-lg">ملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="passengerTableBody" class="divide-y divide-slate-800/50 text-slate-300">
+                            <tr><td colspan="7" class="p-4 text-center text-slate-500">جاري تحميل البيانات...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. Sequential Multi-Clone Runner Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                <h2 class="text-sm font-bold flex items-center gap-2 text-white">
+                    <span>📱</span>
+                    <span>التنفيذ التسلسلي للنسخ (Sequential Multi-Clone)</span>
+                </h2>
+                <div class="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">من نسخة رقم:</label>
+                        <input id="cloneStart" type="number" min="1" max="45" value="1" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">إلى نسخة رقم:</label>
+                        <input id="cloneEnd" type="number" min="1" max="45" value="1" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="runCodePlan()" class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-white transition text-xs">
+                            بدء التشغيل التسلسلي
+                        </button>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400">ينفذ كل نسخة بالتتابع ويغلقها بأمان قبل فتح النسخة التالية لتوفير ذاكرة الجهاز ومنع التعارض.</p>
+            </div>
+        </div>
+
+        <!-- ================= RIGHT COLUMN: LIVE SCREEN & LOGS (5 COLS) ================= -->
+        <div class="col-span-12 lg:col-span-5 space-y-5">
+
+            <!-- 1. Live Interactive Screen Mirror -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span id="screenPingDot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+                        <h2 class="text-sm font-bold text-white">بث شاشة المحاكي المباشر</h2>
+                    </div>
+                    <button onclick="refreshScreen()" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1">
+                        <span>🔄</span>
+                        <span>تحديث</span>
+                    </button>
+                </div>
+
+                <div class="relative rounded-2xl overflow-hidden border border-slate-800 bg-black flex items-center justify-center shadow-inner min-h-[360px]">
+                    <img id="liveScreenImg" src="/api/screenshot" alt="MuMu Screen" class="max-h-[420px] w-auto object-contain cursor-crosshair transition hover:opacity-95" onclick="handleScreenClick(event)" onerror="handleImgError(this)">
+                </div>
+
+                <!-- Hardware Control Buttons -->
+                <div class="grid grid-cols-3 gap-2 text-xs font-semibold">
+                    <button onclick="sendBack()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 transition active:scale-95 flex items-center justify-center gap-1.5">
+                        <span>◀</span>
+                        <span>رجوع</span>
+                    </button>
+                    <button onclick="launchApp()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 transition active:scale-95 flex items-center justify-center gap-1.5">
+                        <span>🚀</span>
+                        <span>فتح نسك</span>
+                    </button>
+                    <button onclick="triggerAI()" class="p-2 rounded-xl bg-indigo-900/70 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/50 transition active:scale-95 flex items-center justify-center gap-1.5">
+                        <span>🤖</span>
+                        <span>فحص AI</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. Real-time Live Log Console -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold flex items-center gap-2 text-white">
+                        <span>📟</span>
+                        <span>سجل الأحداث المباشر (Logs)</span>
+                    </h2>
+                    <span class="text-[10px] text-slate-400 font-mono">Live Stream</span>
+                </div>
+                <div id="logConsole" class="bg-black/80 p-3.5 rounded-xl font-mono text-xs text-emerald-400 h-48 overflow-y-auto space-y-1 border border-slate-800">
+                    <div class="text-slate-500">> بدء الخادم ومراقبة الأحداث...</div>
+                </div>
+            </div>
+
+            <!-- 3. Settings Card (Masked Secrets) -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3.5 text-xs">
+                <h2 class="text-sm font-bold flex items-center gap-2 text-white">
+                    <span>⚙️</span>
+                    <span>الإعدادات والربط السحابي</span>
+                </h2>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-slate-400 mb-1">الفترة المستهدفة:</label>
+                        <select id="cfgPeriod" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                            <option value="All">جميع الفترات المتاحة</option>
+                            <option value="Isha">العشاء (Isha)</option>
+                            <option value="Maghrib">المغرب (Maghrib)</option>
+                            <option value="Asr">العصر (Asr)</option>
+                            <option value="Dhuhr">الظهر (Dhuhr)</option>
+                            <option value="Fajr">الفجر (Fajr)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">تاريخ الحجز المستهدف:</label>
+                        <input id="cfgDate" type="text" placeholder="فارغ لأول موعد متاح" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Gmail (سحب OTP):</label>
+                        <input id="cfgGmailUser" type="email" placeholder="example@gmail.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Gmail App Password:</label>
+                        <input id="cfgGmailPass" type="password" placeholder="••••••••" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-400 mb-1">Google Gemini API Key:</label>
+                    <input id="cfgGeminiKey" type="password" placeholder="••••••••" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                </div>
+
+                <button onclick="saveSettings()" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white transition active:scale-95 shadow-md">
+                    💾 حفظ الإعدادات
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Preflight Diagnostic Modal -->
+    <div id="preflightModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>🔍</span>
+                    <span>تقرير الفحص المسبق للبيئة (Preflight Diagnostic)</span>
+                </h3>
+                <button onclick="closePreflight()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+            </div>
+
+            <div id="preflightBody" class="space-y-3 text-xs">
+                <div class="text-slate-400">جاري الفحص...</div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-800 flex justify-end">
+                <button onclick="closePreflight()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-white font-bold text-xs">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let lastScreen = 'UNKNOWN';
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        async function updateStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+
+                // 1. Connection badge
+                const isConn = data.is_connected;
+                const statusBadge = document.getElementById('statusBadge');
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+
+                if (isConn) {
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+                    statusText.innerText = 'متصل بالمحاكي (' + (data.device ? data.device.serial : '') + ')';
+                    document.getElementById('screenPingDot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping';
+                } else {
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-red-400';
+                    statusText.innerText = 'المحاكي غير متصل';
+                    document.getElementById('screenPingDot').className = 'w-2.5 h-2.5 rounded-full bg-red-400';
+                }
+
+                // 2. Device info headers
+                document.getElementById('hdrDeviceModel').innerText = (data.device && data.device.model) ? data.device.model : 'غير متصل';
+                document.getElementById('hdrResolution').innerText = data.screen_resolution || '-';
+                document.getElementById('hdrCurrentScreen').innerText = data.last_screen || 'UNKNOWN';
+
+                // 3. Engine state
+                document.getElementById('engineStateBadge').innerText = data.state;
+                document.getElementById('countTotal').innerText = data.total_passengers || 0;
+
+                const doneCount = (data.passengers || []).filter(p => (p.booking_status || '').includes('تم') || (p.booking_status || '').includes('مؤكد')).length;
+                document.getElementById('countDone').innerText = doneCount;
+
+                // 4. Running toggle buttons
+                isRunning = data.is_running;
+                if (isRunning) {
+                    document.getElementById('btnStart').classList.add('hidden');
+                    document.getElementById('btnResume').classList.add('hidden');
+                    document.getElementById('btnStop').classList.remove('hidden');
+                } else {
+                    document.getElementById('btnStop').classList.add('hidden');
+                    if (data.state.includes('توقف أمني') || data.state.includes('مؤقت')) {
+                        document.getElementById('btnStart').classList.add('hidden');
+                        document.getElementById('btnResume').classList.remove('hidden');
+                    } else {
+                        document.getElementById('btnStart').classList.remove('hidden');
+                        document.getElementById('btnResume').classList.add('hidden');
+                    }
+                }
+
+                // 5. Security Challenge Banner
+                const secBanner = document.getElementById('secAlertBanner');
+                if (data.state.includes('توقف أمني') || (data.last_screen === 'SECURITY_CHALLENGE')) {
+                    secBanner.classList.remove('hidden');
+                } else {
+                    secBanner.classList.add('hidden');
+                }
+
+                // 6. AI Badge
+                const aiBadge = document.getElementById('aiStatusBadge');
+                if (data.config && data.config.gemini_api_key) {
+                    aiBadge.innerText = 'جاهز للعمل 🤖';
+                    aiBadge.className = 'text-xs font-bold text-indigo-400';
+                } else {
+                    aiBadge.innerText = 'غير مفعل';
+                    aiBadge.className = 'text-xs font-bold text-slate-500';
+                }
+
+                // 7. Update slots indicator
+                const slotsIndicator = document.getElementById('slotsIndicator');
+                const slotsContainer = document.getElementById('slotsContainer');
+                if (data.last_screen === 'AVAILABLE_SLOT' || data.last_screen === 'CALENDAR') {
+                    slotsIndicator.innerText = 'شاشة المواعيد نشطة';
+                    slotsIndicator.className = 'text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800';
+                    slotsContainer.innerHTML = '<div class="text-emerald-400 font-bold">● تم رصد مواعيد على شاشة التطبيق ويجري معالجتها آلياً.</div>';
+                } else if (data.last_screen === 'FULLY_BOOKED') {
+                    slotsIndicator.innerText = 'المواعيد ممتلئة';
+                    slotsIndicator.className = 'text-xs px-2.5 py-0.5 rounded-full bg-red-950 text-red-300 border border-red-800';
+                    slotsContainer.innerHTML = '<div class="text-red-400 font-bold">جميع المواعيد محجوزة حالياً في التطبيق.</div>';
+                } else {
+                    slotsIndicator.innerText = 'بانتظار شاشة الكالندر';
+                    slotsIndicator.className = 'text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400';
+                    slotsContainer.innerText = 'لا توجد مواعيد معروضة حالياً. تظهر المواعيد هنا بشكل حي وتلقائي عند وصول شاشة المحاكي إلى جدول المواعيد الرسمي.';
+                }
+
+                renderPassengers(data.passengers || []);
+            } catch (e) {}
+        }
+
+        function renderPassengers(passengers) {
+            const tbody = document.getElementById('passengerTableBody');
+            if (!passengers || passengers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500">لا توجد حسابات محملة</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = passengers.map(p => {
+                let statusColor = 'text-amber-400';
+                if ((p.booking_status || '').includes('تم') || (p.booking_status || '').includes('مؤكد')) statusColor = 'text-emerald-400';
+                else if ((p.booking_status || '').includes('فشل') || (p.booking_status || '').includes('أمني')) statusColor = 'text-red-400';
+
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-2 font-mono text-slate-400">${escapeHtml(p.id)}</td>
+                        <td class="p-2 font-semibold text-white">${escapeHtml(p.name || '-')}</td>
+                        <td class="p-2 font-mono text-slate-300">${escapeHtml(p.email || '-')}</td>
+                        <td class="p-2 font-mono text-slate-300">${escapeHtml(p.passport_no || p.visa_no || '-')}</td>
+                        <td class="p-2">${escapeHtml(p.person_type || 'رجال')}</td>
+                        <td class="p-2 font-bold ${statusColor}">${escapeHtml(p.booking_status || 'قيد الانتظار')}</td>
+                        <td class="p-2 text-slate-400">${escapeHtml(p.note || '-')}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function updateLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                const consoleEl = document.getElementById('logConsole');
+                if (data.logs && data.logs.length > 0) {
+                    consoleEl.innerHTML = data.logs.map(l => `<div>${escapeHtml(l)}</div>`).join('');
+                    consoleEl.scrollTop = consoleEl.scrollHeight;
+                }
+            } catch (e) {}
+        }
+
+        function refreshScreen() {
+            document.getElementById('liveScreenImg').src = '/api/screenshot?t=' + Date.now();
+        }
+
+        function handleImgError(img) {
+            // If offline, keep clean placeholder
+        }
+
+        async function startBot() {
+            const res = await fetch('/api/start', { method: 'POST', body: '{}' });
+            const data = await res.json();
+            alert(data.message);
+            updateStatus();
+        }
+
+        async function resumeBot() {
+            const res = await fetch('/api/resume', { method: 'POST', body: '{}' });
+            const data = await res.json();
+            alert(data.message);
+            updateStatus();
+        }
+
+        async function stopBot() {
+            const res = await fetch('/api/stop', { method: 'POST', body: '{}' });
+            const data = await res.json();
+            updateStatus();
+        }
+
+        async function sendBack() {
+            await fetch('/api/back', { method: 'POST', body: '{}' });
+            setTimeout(refreshScreen, 600);
+        }
+
+        async function launchApp() {
+            await fetch('/api/launch_app', { method: 'POST', body: '{}' });
+            setTimeout(refreshScreen, 2000);
+        }
+
+        async function triggerAI() {
+            const res = await fetch('/api/ai_analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ instruction: 'تحليل الشاشة الحالية' }) });
+            const data = await res.json();
+            alert('تحليل الذكاء الاصطناعي:\nالشاشة: ' + (data.current_screen || 'غير محدد') + '\nالقرار: ' + (data.decision || data.error || '-'));
+        }
+
+        async function handleScreenClick(event) {
+            const img = document.getElementById('liveScreenImg');
+            const rect = img.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                const clickX = event.clientX - rect.left;
+                const clickY = event.clientY - rect.top;
+                // Normalize to 900x1600 reference
+                const normX = Math.round((clickX / rect.width) * 900);
+                const normY = Math.round((clickY / rect.height) * 1600);
+                await fetch('/api/tap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ x: normX, y: normY })
+                });
+                setTimeout(refreshScreen, 800);
+            }
+        }
+
+        async function saveSettings() {
+            const cfg = {
+                target_period: document.getElementById('cfgPeriod').value,
+                target_date: document.getElementById('cfgDate').value,
+                gmail_user: document.getElementById('cfgGmailUser').value,
+                gmail_app_password: document.getElementById('cfgGmailPass').value,
+                gemini_api_key: document.getElementById('cfgGeminiKey').value
+            };
+            const res = await fetch('/api/save_config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cfg)
+            });
+            const data = await res.json();
+            alert(data.message || 'تم حفظ الإعدادات');
+        }
+
+        async function runCodePlan() {
+            const s = parseInt(document.getElementById('cloneStart').value) || 1;
+            const e = parseInt(document.getElementById('cloneEnd').value) || 1;
+            const res = await fetch('/api/run_code_plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clone_start: s, clone_end: e })
+            });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        async function promptImport() {
+            const path = prompt('أدخل مسار ملف CSV أو Excel (أو اتركه فارغاً لتحميل sample_passengers.csv):', '');
+            if (path !== null) {
+                const res = await fetch('/api/import_excel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: path.trim() })
+                });
+                const data = await res.json();
+                alert(`تم استيراد ${data.count} معتمر بنجاح.`);
+                updateStatus();
+            }
+        }
+
+        async function exportExcel() {
+            const res = await fetch('/api/export_excel', { method: 'POST', body: '{}' });
+            const data = await res.json();
+            alert(`تم تصدير النتائج إلى:\n${data.output_path}`);
+        }
+
+        async function generateDotTrickAccounts() {
+            const baseEmail = prompt('أدخل البريد الأساسي لتوليد حسابات الـ Dot Trick:', document.getElementById('cfgGmailUser').value || 'mostafashehatatest@gmail.com');
+            if (baseEmail && baseEmail.trim()) {
+                const countStr = prompt('كم عدد الحسابات المطلوبة؟', '5');
+                const count = parseInt(countStr) || 5;
+                const res = await fetch('/api/generate_dot_trick', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: baseEmail.trim(), count: count })
+                });
+                const data = await res.json();
+                alert(`تم توليد ${data.count} حساب معتمر بالـ Dot Trick بنجاح!`);
+                updateStatus();
+            }
+        }
+
+        async function runPreflight() {
+            const modal = document.getElementById('preflightModal');
+            const body = document.getElementById('preflightBody');
+            modal.classList.remove('hidden');
+            body.innerHTML = '<div class="text-slate-400">جاري فحص بيئة النظام والمحاكي...</div>';
+
+            try {
+                const res = await fetch('/api/preflight');
+                const data = await res.json();
+
+                let html = `
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                            <div>
+                                <span class="font-bold text-white">إصدار Python:</span>
+                                <div class="font-mono text-slate-400">${escapeHtml(data.python.version)} (${escapeHtml(data.python.executable)})</div>
+                            </div>
+                            <span class="${data.python.is_ok ? 'text-emerald-400' : 'text-red-400'} font-bold">${data.python.is_ok ? '✅ سليم' : '❌ يحتاج تحديث'}</span>
+                        </div>
+
+                        <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                            <span class="font-bold text-white mb-1 block">حزم بايثون المطلوبة:</span>
+                            <div class="grid grid-cols-2 gap-1.5 font-mono text-[11px]">
+                                ${Object.entries(data.packages || {}).map(([pkg, ok]) => `
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-300">${escapeHtml(pkg)}</span>
+                                        <span class="${ok ? 'text-emerald-400' : 'text-red-400'}">${ok ? '✅ مُثبت' : '❌ مفقود'}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                            <div>
+                                <span class="font-bold text-white">أداة ADB:</span>
+                                <div class="font-mono text-slate-400">${escapeHtml(data.adb.resolved_path || 'غير متوفر')}</div>
+                                <div class="text-[10px] text-slate-500">${escapeHtml(data.adb.version || '')}</div>
+                            </div>
+                            <span class="${data.adb.is_ok ? 'text-emerald-400' : 'text-red-400'} font-bold">${data.adb.is_ok ? '✅ متوفر' : '❌ غير متوفر'}</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                            <div>
+                                <span class="font-bold text-white">حالة الاتصال بالجهاز:</span>
+                                <div class="text-slate-400">${data.device ? escapeHtml(data.device.model + ' (Android ' + data.device.android_version + ')') : 'لا يوجد جهاز متصل'}</div>
+                            </div>
+                            <span class="${data.device ? 'text-emerald-400' : 'text-amber-400'} font-bold">${data.status}</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                            <div>
+                                <span class="font-bold text-white">تطبيق نسك (${escapeHtml(data.app.package)}):</span>
+                                <div class="text-slate-400">${data.app.is_installed ? 'مثبت على المحاكي' : 'غير مثبت'}</div>
+                            </div>
+                            <span class="${data.app.is_installed ? 'text-emerald-400' : 'text-amber-400'} font-bold">${data.app.is_installed ? '✅ مثبت' : '⚪ غير مثبت'}</span>
+                        </div>
+                    </div>
+                `;
+
+                if (data.remediation && data.remediation.length > 0) {
+                    html += `
+                        <div class="mt-3 p-3 rounded-xl bg-amber-950/40 border border-amber-800/50">
+                            <span class="font-bold text-amber-300 block mb-1">خطوات التصحيح الموصى بها:</span>
+                            <ul class="list-disc list-inside space-y-1 text-slate-300">
+                                ${data.remediation.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                body.innerHTML = html;
+            } catch (e) {
+                body.innerHTML = `<div class="text-red-400">فشل إجراء الفحص المسبق: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function closePreflight() {
+            document.getElementById('preflightModal').classList.add('hidden');
+        }
+
+        // Initialize polling intervals
+        setInterval(updateStatus, 1800);
+        setInterval(updateLogs, 2000);
+        updateStatus();
+        updateLogs();
+    </script>
+</body>
+</html>

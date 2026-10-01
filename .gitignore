@@ -1,0 +1,34 @@
+# NusukBot_PC .gitignore
+# Secrets and environment configurations
+config.json
+.env
+*.env
+*.key
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Device dumps, screenshots, and transient caches
+cache/*.png
+cache/*.xml
+cache/*.jpg
+cache/*.jpeg
+logs/
+*.log
+
+# Local test runs and exported results
+results.json
+Nusuk_Permits_Export*.xlsx
+Nusuk_Permits_Export*.csv
+*.xlsx
+!sample_*.xlsx
+
+# Editor and OS
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+Nusuk.apk

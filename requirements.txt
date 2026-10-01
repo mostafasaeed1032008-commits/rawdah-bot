@@ -1,0 +1,4 @@
+requests>=2.31
+openpyxl>=3.1
+Pillow>=10.0
+Appium-Python-Client>=3.2

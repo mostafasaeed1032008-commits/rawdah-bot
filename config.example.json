@@ -1,0 +1,18 @@
+{
+  "adb_path": "",
+  "device_serial": "127.0.0.1:16384",
+  "nusuk_package": "com.moh.nusukapp",
+  "target_date": "",
+  "target_period": "All",
+  "time_from": "08:00",
+  "time_to": "23:59",
+  "max_fallback_days": 3,
+  "unified_password": "",
+  "gmail_user": "",
+  "gmail_app_password": "",
+  "gemini_api_key": "",
+  "auto_sniper_interval_ms": 1000,
+  "link_children": true,
+  "server_port": 5000,
+  "default_excel_path": ""
+}
